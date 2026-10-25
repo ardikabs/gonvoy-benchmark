@@ -1,0 +1,38 @@
+# Fixed header sets for load generation (Task 7).
+
+# `nighthawk_client` sends ONE header set per invocation (repeated
+# `--request-header` flags), so each set below maps to the `command:` shown.
+# There is no multi-shape request file mode on the CLI used by
+# scripts/run-benchmark.sh; "mixed" therefore means alternating runs of the
+# with-key / without-key shapes (see run log), not interleaved requests in
+# one run. Per docs/FILTER_SPEC.md, `user-agent` must contain "benchmark"
+# for the `x-bench-tag=<filter-name>` branch; both shapes below do.
+
+header_sets:
+  with-key:
+    description: >
+      Authenticated shape: passes the FILTER_SPEC request branch
+      (x-auth-status=authenticated).
+    headers:
+      - "x-api-key: test-key-123"
+      - "user-agent: benchmark-agent"
+    command:
+      - --request-header "x-api-key: test-key-123"
+      - --request-header "user-agent: benchmark-agent"
+
+  without-key:
+    description: >
+      Unauthenticated shape: exercises the ELSE branch
+      (x-auth-status=unauthenticated + x-auth-retry=true).
+    headers:
+      - "user-agent: benchmark-agent"
+    command:
+      - --request-header "user-agent: benchmark-agent"
+
+  mixed:
+    description: >
+      Alternating with-key / without-key runs at the same RPS; compare the
+      two raw JSONs to see branch cost. Not a single nighthawk run.
+    runs:
+      - with-key
+      - without-key
