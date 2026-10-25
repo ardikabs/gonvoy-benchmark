@@ -8,8 +8,8 @@
 #      - filters/gonvoy/handler.go exists, defines
 #        BenchHandler as a gonvoy.Middleware
 #        (func(next gonvoy.Handler) gonvoy.Handler) that calls next(c),
-#        returns nil, uses only header APIs (c.Header, c.SetHeader,
-#        c.SetRequestHeader, c.Request().Header Add/Del) plus
+#        returns nil, uses only header APIs (c.Request().Header and
+#        c.Response().Header Get/Set/Add/Del) plus
 #        strings.Contains for the benchmark UA branch (no body calls).
 #      - filters/gonvoy/main.go exists, registers plugin "bench-gonvoy"
 #        via envoy.Handle("bench-gonvoy", gonvoy.Use(BenchHandler)) in
@@ -19,7 +19,7 @@
 #      - filters/gonvoy/gonvoy.so exists (built artifact; FAILS until built).
 #      - envoy/envoy-gonvoy.yaml exists, parses as YAML, has listener
 #        0.0.0.0:10000, golang filter (library_id bench-gonvoy-id,
-#        library_path /lib/gonvoy.so, plugin_name bench-gonvoy) before
+#        library_path /lib/gonvoy/gonvoy.so, plugin_name bench-gonvoy) before
 #        router, route prefix / to cluster backend:8080.
 #      - envoy --mode validate on the config (via docker image if present).
 #   2. End-to-end checks (needs docker + envoyproxy/envoy:contrib-v1.40-latest
@@ -27,7 +27,7 @@
 #      - starts a stub backend on host :8080 that echoes request headers back
 #        as x-echo-* response headers,
 #      - starts envoy in docker with --add-host=backend:host-gateway and the
-#        .so mounted at /lib/gonvoy.so,
+#        .so mounted at /lib/gonvoy/gonvoy.so,
 #      - runs the curl matrix below and asserts response/request headers.
 #
 # Curl matrix (all against http://127.0.0.1:10000/):
@@ -107,18 +107,21 @@ grep -q 'return nil' "$HANDLER_GO" \
   && pass "handler.go returns nil (passthrough)" \
   || fail "handler.go returns nil (passthrough)"
 
-# Header-only API: c.Header (request read), c.SetRequestHeader (request
-# set), c.Request().Header Add/Del (request add/drop escape hatch),
-# c.SetHeader (response set). Plus strings.Contains for the UA branch.
-grep -q 'c\.Header(' "$HANDLER_GO" \
-  && pass "handler.go reads request headers via c.Header" \
-  || fail "handler.go reads request headers via c.Header"
-grep -q 'c\.SetHeader(' "$HANDLER_GO" \
-  && pass "handler.go writes response headers via c.SetHeader" \
-  || fail "handler.go writes response headers via c.SetHeader"
-grep -q 'c\.SetRequestHeader(' "$HANDLER_GO" \
-  && pass "handler.go writes request headers via c.SetRequestHeader" \
-  || fail "handler.go writes request headers via c.SetRequestHeader"
+# Header-only API: c.Request().Header (request Get/Set/Add/Del),
+# c.Response().Header (response Get/Set/Add/Del, fresh view after next).
+# Plus strings.Contains for the UA branch.
+grep -q 'Request()\.Header\.Get' "$HANDLER_GO" \
+  && pass "handler.go reads request headers via c.Request().Header" \
+  || fail "handler.go reads request headers via c.Request().Header"
+grep -q 'Response()\.Header\.\(Set\|Add\)' "$HANDLER_GO" \
+  && pass "handler.go writes response headers via c.Response().Header" \
+  || fail "handler.go writes response headers via c.Response().Header"
+grep -q 'Request()\.Header\.Set' "$HANDLER_GO" \
+  && pass "handler.go writes request headers via c.Request().Header" \
+  || fail "handler.go writes request headers via c.Request().Header"
+grep -q 'Response()\.Header\.Del' "$HANDLER_GO" \
+  && pass "handler.go drops response headers via c.Response().Header.Del" \
+  || fail "handler.go drops response headers via c.Response().Header.Del"
 grep -q 'Request()\.Header\.\(Add\|Del\)' "$HANDLER_GO" \
   && pass "handler.go adds/drops request headers via c.Request().Header" \
   || fail "handler.go adds/drops request headers via c.Request().Header"
@@ -188,7 +191,7 @@ assert names == ['envoy.filters.http.golang', 'envoy.filters.http.router'], name
 go_tc = tc['http_filters'][0]['typed_config']
 assert go_tc['@type'] == 'type.googleapis.com/envoy.extensions.filters.http.golang.v3alpha.Config', go_tc.get('@type')
 assert go_tc.get('library_id') == 'bench-gonvoy-id', go_tc.get('library_id')
-assert go_tc.get('library_path') == '/lib/gonvoy.so', go_tc.get('library_path')
+assert go_tc.get('library_path') == '/lib/gonvoy/gonvoy.so', go_tc.get('library_path')
 assert go_tc.get('plugin_name') == 'bench-gonvoy', go_tc.get('plugin_name')
 route = tc['route_config']['virtual_hosts'][0]['routes'][0]
 assert route['match'] == {'prefix': '/'}, route['match']
@@ -228,7 +231,7 @@ echo "=== envoy --mode validate ==="
 # check above already FAILs until `bash filters/gonvoy/build.sh` runs).
 if [ -f "$SO" ]; then
   VALIDATE_OUT="$(docker run --rm -v "$CONFIG:/etc/envoy/envoy.yaml:ro" \
-    -v "$SO:/lib/gonvoy.so:ro" "$IMAGE" \
+    -v "$SO:/lib/gonvoy/gonvoy.so:ro" "$IMAGE" \
     --mode validate -c /etc/envoy/envoy.yaml 2>&1)"
   VALIDATE_RC=$?
   echo "$VALIDATE_OUT" | tail -3
@@ -297,7 +300,7 @@ docker run -d --name envoy-gonvoy-test \
   --add-host=backend:host-gateway \
   -p 127.0.0.1:10000:10000 \
   -v "$CONFIG:/etc/envoy/envoy.yaml:ro" \
-  -v "$SO:/lib/gonvoy.so:ro" \
+  -v "$SO:/lib/gonvoy/gonvoy.so:ro" \
   "$IMAGE" -c /etc/envoy/envoy.yaml >/dev/null
 ready=0
 for _ in $(seq 1 60); do

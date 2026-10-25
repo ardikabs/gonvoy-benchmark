@@ -13,7 +13,7 @@
 #        bench_header.wasm exists (built artifact; FAILS until built).
 #      - envoy/envoy-wasm.yaml exists, parses as YAML, has listener
 #        0.0.0.0:10000, wasm filter (runtime envoy.wasm.runtime.v8,
-#        filename /lib/bench_header.wasm, root_id bench_root) before
+#        filename /lib/wasm/bench_header.wasm, root_id bench_root) before
 #        router, route prefix / to cluster backend:8080.
 #      - envoy --mode validate on the config (via docker image if present).
 #   2. End-to-end checks (needs docker + envoyproxy/envoy:contrib-v1.40-latest
@@ -21,7 +21,7 @@
 #      - starts a stub backend on host :8080 that echoes request headers back
 #        as x-echo-* response headers,
 #      - starts envoy in docker with --add-host=backend:host-gateway and the
-#        .wasm mounted at /lib/bench_header.wasm,
+#        .wasm mounted at /lib/wasm/bench_header.wasm,
 #      - runs the curl matrix below and asserts response/request headers.
 #
 # Curl matrix (all against http://127.0.0.1:10000/):
@@ -148,7 +148,7 @@ assert plugin['root_id'] == 'bench_root', plugin.get('root_id')
 vm = plugin['vm_config']
 assert vm['runtime'] == 'envoy.wasm.runtime.v8', vm.get('runtime')
 code = vm['code']['local']
-assert code.get('filename') == '/lib/bench_header.wasm', code
+assert code.get('filename') == '/lib/wasm/bench_header.wasm', code
 route = tc['route_config']['virtual_hosts'][0]['routes'][0]
 assert route['match'] == {'prefix': '/'}, route['match']
 assert route['route']['cluster'] == 'backend:8080', route['route']
@@ -187,7 +187,7 @@ echo "=== envoy --mode validate ==="
 # check above already FAILs until `bash filters/wasm-rust/build.sh` runs).
 if [ -f "$WASM" ]; then
   VALIDATE_OUT="$(docker run --rm -v "$CONFIG:/etc/envoy/envoy.yaml:ro" \
-    -v "$WASM:/lib/bench_header.wasm:ro" "$IMAGE" \
+    -v "$WASM:/lib/wasm/bench_header.wasm:ro" "$IMAGE" \
     --mode validate -c /etc/envoy/envoy.yaml 2>&1)"
   VALIDATE_RC=$?
   echo "$VALIDATE_OUT" | tail -3
@@ -256,7 +256,7 @@ docker run -d --name envoy-wasm-test \
   --add-host=backend:host-gateway \
   -p 127.0.0.1:10000:10000 \
   -v "$CONFIG:/etc/envoy/envoy.yaml:ro" \
-  -v "$WASM:/lib/bench_header.wasm:ro" \
+  -v "$WASM:/lib/wasm/bench_header.wasm:ro" \
   "$IMAGE" -c /etc/envoy/envoy.yaml >/dev/null
 ready=0
 for _ in $(seq 1 60); do

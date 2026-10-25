@@ -3,7 +3,7 @@
 Canonical metrics for comparing filter variants. Consumed by Task 7 (benchmark harness).
 
 | Metric | Source | Higher/Lower better |
-|---|---|---|
+| --- | --- | --- |
 | Achieved RPS | nighthawk `results` | Higher better |
 | p50/p90/p95/p99 latency ms | HDR histogram | Lower better |
 | Mean + stdev | nighthawk JSON | Lower better |

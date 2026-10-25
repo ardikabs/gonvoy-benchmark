@@ -1,7 +1,26 @@
 # Envoy Filter Benchmark
 
-Goal: compare Envoy header-filter mechanisms on contrib-v1.40 —
-request/response header mutation cost across Lua, WASM, native Go, and Gonvoy.
+This benchmark exists to answer one question about
+[gonvoy](https://github.com/ardikabs/gonvoy) — the opinionated Go framework
+for Envoy HTTP filters: **does a filter built on gonvoy behave correctly
+and perform competitively enough to be adopted in production?**
+
+To find out, a gateway-like header-mutation workload is implemented five
+ways on Envoy `contrib-v1.40`, and gonvoy is measured against the
+alternatives a team would otherwise pick:
+
+- `baseline` — no filter (reference: cost of the proxy itself)
+- `lua` — the built-in Lua filter (the conventional low-ceremony choice)
+- `wasm` — a proxy-wasm filter (the portable/sandboxed choice)
+- `go` — a hand-written native Envoy Go filter (the no-abstraction choice)
+- `gonvoy` — the same logic through the gonvoy SDK (**the subject under
+  test**)
+
+If gonvoy matches native Go on correctness and stays within striking
+distance on latency and efficiency — while beating at least one of
+Lua/WASM — that is evidence it is production-ready rather than just
+convenient. The verdict rule in [docs/METRICS.md](docs/METRICS.md)
+encodes exactly that bar, and the parser prints the verdict per RPS band.
 
 ## Variants
 
@@ -35,17 +54,17 @@ Lua needs no build (`filters/lua/filter.lua` is inlined into
 `envoy/envoy-lua.yaml`; the smoke test asserts they match). The rest:
 
 ```bash
-# Native Go (.so loaded by Envoy at /lib/bench-go.so)
+# Native Go (.so loaded by Envoy at /lib/go-native/bench-go.so)
 cd filters/go-native && go build -buildmode=c-shared -o bench-go.so .
 
-# Gonvoy (.so loaded by Envoy at /lib/gonvoy.so).
+# Gonvoy (.so loaded by Envoy at /lib/gonvoy/gonvoy.so).
 # -buildmode=c-shared needs a Linux C toolchain: on macOS without a cross
 # compiler, build inside the golang image instead:
 cd filters/gonvoy && go build -o gonvoy.so -buildmode=c-shared .
 docker run --rm -v "$PWD:/src" -w /src golang:1.26-bookworm \
   go build -o gonvoy.so -buildmode=c-shared .
 
-# WASM (.wasm loaded by Envoy at /lib/bench_header.wasm)
+# WASM (.wasm loaded by Envoy at /lib/wasm/bench_header.wasm)
 bash filters/wasm-rust/build.sh
 # (= rustup target add wasm32-unknown-unknown, then
 #   cargo build --release --target wasm32-unknown-unknown)
@@ -89,7 +108,7 @@ presence, YAML structure, `envoy --mode validate`) plus a live curl matrix
 | `test_lua.sh` | PASS 35/35 |
 | `test_wasm.sh` | PASS 43/43 |
 | `test_go_native.sh` | PASS 46/46 |
-| `test_gonvoy.sh` | 46/50 — the 4 failures are the **known parked gonvoy response-drop leak** (cases A/B `response omits server` + `response omits x-drop-me`), so the loop exits nonzero at gonvoy by design |
+| `test_gonvoy.sh` | PASS 51/51 |
 
 There is no `test_baseline.sh`; baseline serving is covered by
 `./scripts/switch-variant.sh baseline` (HTTP 200, no `x-resp-added`).
@@ -156,13 +175,6 @@ is deliberately not scored in the matrix (see known limitations).
 
 ## Known limitations (parked, not fixed)
 
-- **Gonvoy response-drop leak.** `gonvoy.Context` (pinned main-branch
-  pseudo-version `v0.4.1-0.20261025063629-248bc5dacb81`) exposes only
-  `SetHeader` for responses — no response Add/Del — so the spec's response
-  drops (`server`, `x-drop-me`) cannot conform. Request-side Add/Del work.
-  Fix needs a gonvoy upstream `DelHeader`/`AddHeader` on `Context`. The
-  benchmark parser deliberately reports performance only and penalizes
-  nothing for this; `test_gonvoy.sh` documents it as 4/50 expected failures.
 - **Response-drop conformance rests on live assertions.** The lua/wasm/go
   suites assert `nohdr <case> server` (helper prepends `^`), matching
   `test_gonvoy.sh`; response drops are covered live in all four suites.

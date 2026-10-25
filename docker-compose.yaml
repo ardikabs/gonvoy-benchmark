@@ -25,7 +25,7 @@
 
 services:
   backend:
-    image: mendhak/http-https-echo:latest
+    image: ghcr.io/ardikabs/echoserver:latest
     restart: unless-stopped
     expose:
       - "8080"

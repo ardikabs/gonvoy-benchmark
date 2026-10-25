@@ -2,7 +2,7 @@ module bench-gonvoy
 
 go 1.26
 
-require github.com/ardikabs/gonvoy v0.4.1-0.20261025063629-248bc5dacb81
+require github.com/ardikabs/gonvoy v0.4.1-0.20261025120724-dabc4a7487df
 
 require (
 	cel.dev/expr v0.25.1 // indirect

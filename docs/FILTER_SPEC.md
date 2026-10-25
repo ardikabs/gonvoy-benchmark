@@ -19,6 +19,7 @@ Baseline implements no filter (reference only).
 Header-only: MUST NOT touch body/trailers/local-reply — header map APIs only.
 
 Notes:
+
 - "Set" = replace/add semantics (single value); "Add" = append value.
 - Header name matching is case-insensitive per HTTP semantics.
 - Missing `x-api-key` is treated as ELSE branch.

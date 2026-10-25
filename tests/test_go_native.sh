@@ -15,7 +15,7 @@
 #      - filters/go-native/bench-go.so exists (built artifact; FAILS until built).
 #      - envoy/envoy-go-native.yaml exists, parses as YAML, has listener
 #        0.0.0.0:10000, golang filter (library_id bench-go-id, library_path
-#        /lib/bench-go.so, plugin_name bench-go) before router, route prefix /
+#        /lib/go-native/bench-go.so, plugin_name bench-go) before router, route prefix /
 #        to cluster backend:8080.
 #      - envoy --mode validate on the config (via docker image if present).
 #   2. End-to-end checks (needs docker + envoyproxy/envoy:contrib-v1.40-latest
@@ -23,7 +23,7 @@
 #      - starts a stub backend on host :8080 that echoes request headers back
 #        as x-echo-* response headers,
 #      - starts envoy in docker with --add-host=backend:host-gateway and the
-#        .so mounted at /lib/bench-go.so,
+#        .so mounted at /lib/go-native/bench-go.so,
 #      - runs the curl matrix below and asserts response/request headers.
 #
 # Curl matrix (all against http://127.0.0.1:10000/):
@@ -165,7 +165,7 @@ assert names == ['envoy.filters.http.golang', 'envoy.filters.http.router'], name
 go_tc = tc['http_filters'][0]['typed_config']
 assert go_tc['@type'] == 'type.googleapis.com/envoy.extensions.filters.http.golang.v3alpha.Config', go_tc.get('@type')
 assert go_tc.get('library_id') == 'bench-go-id', go_tc.get('library_id')
-assert go_tc.get('library_path') == '/lib/bench-go.so', go_tc.get('library_path')
+assert go_tc.get('library_path') == '/lib/go-native/bench-go.so', go_tc.get('library_path')
 assert go_tc.get('plugin_name') == 'bench-go', go_tc.get('plugin_name')
 route = tc['route_config']['virtual_hosts'][0]['routes'][0]
 assert route['match'] == {'prefix': '/'}, route['match']
@@ -205,7 +205,7 @@ echo "=== envoy --mode validate ==="
 # check above already FAILs until `bash filters/go-native/build.sh` runs).
 if [ -f "$SO" ]; then
   VALIDATE_OUT="$(docker run --rm -v "$CONFIG:/etc/envoy/envoy.yaml:ro" \
-    -v "$SO:/lib/bench-go.so:ro" "$IMAGE" \
+    -v "$SO:/lib/go-native/bench-go.so:ro" "$IMAGE" \
     --mode validate -c /etc/envoy/envoy.yaml 2>&1)"
   VALIDATE_RC=$?
   echo "$VALIDATE_OUT" | tail -3
@@ -274,7 +274,7 @@ docker run -d --name envoy-go-test \
   --add-host=backend:host-gateway \
   -p 127.0.0.1:10000:10000 \
   -v "$CONFIG:/etc/envoy/envoy.yaml:ro" \
-  -v "$SO:/lib/bench-go.so:ro" \
+  -v "$SO:/lib/go-native/bench-go.so:ro" \
   "$IMAGE" -c /etc/envoy/envoy.yaml >/dev/null
 ready=0
 for _ in $(seq 1 60); do
