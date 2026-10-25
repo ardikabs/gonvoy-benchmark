@@ -303,7 +303,7 @@ has caseA x-echo-x-filter-type go
 has caseA x-resp-added go
 has caseA x-resp-version v1
 has caseA x-gateway envoy-go
-nohdr caseA '^server'
+nohdr caseA server
 nohdr caseA x-drop-me
 nohdr caseA x-echo-x-drop-me
 grep -qi "^x-echo-x-auth-retry:" "$TMPD/caseA.hdr" \
@@ -317,7 +317,7 @@ has caseB x-echo-x-bench-tag go-default
 has caseB x-resp-added go
 has caseB x-resp-version v1
 has caseB x-gateway envoy-go
-nohdr caseB '^server'
+nohdr caseB server
 nohdr caseB x-drop-me
 
 # Case C: client x-drop-me must be stripped before upstream.

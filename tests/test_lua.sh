@@ -242,7 +242,7 @@ has caseA x-echo-x-filter-type lua
 has caseA x-resp-added lua
 has caseA x-resp-version v1
 has caseA x-gateway envoy-lua
-nohdr caseA '^server'
+nohdr caseA server
 nohdr caseA x-drop-me
 nohdr caseA x-echo-x-drop-me
 grep -qi "^x-echo-x-auth-retry:" "$TMPD/caseA.hdr" \
@@ -256,7 +256,7 @@ has caseB x-echo-x-bench-tag lua-default
 has caseB x-resp-added lua
 has caseB x-resp-version v1
 has caseB x-gateway envoy-lua
-nohdr caseB '^server'
+nohdr caseB server
 nohdr caseB x-drop-me
 
 # Case C: client x-drop-me must be stripped before upstream.

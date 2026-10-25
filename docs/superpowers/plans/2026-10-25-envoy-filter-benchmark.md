@@ -17,7 +17,7 @@
 - No body/trailers access: Lua only `headers()`, WASM only `on_http_request/response_headers`, Go only `DecodeHeaders/EncodeHeaders`, gonvoy default (no `OpenBodyAccess`, no `Read/Write*Body`).
 - Upstream MUST be identical for all runs (single `http-echo` or `direct_response`; chosen in Task 6 and reused).
 - Each run MUST pin Envoy concurrency, warm up, fixed duration, 3 repeats.
-- Every built artifact MUST be committed with its build command in README (`.so` via `c-shared`, `.wasm` via `cargo build --release --target wasm32-unknown-unknown`).
+- Every built artifact's build command MUST be in README (`.so` via `c-shared`, `.wasm` via `cargo build --release --target wasm32-unknown-unknown`); binaries themselves stay git-ignored while dependency lockfiles (`filters/*/go.sum`, `filters/wasm-rust/Cargo.lock`) ARE committed.
 - Machine info (CPU, RAM, `nproc`, `docker info`) MUST be captured per run for comparability.
 
 ## Review Focus

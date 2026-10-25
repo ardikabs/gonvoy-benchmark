@@ -141,10 +141,16 @@ EOF
 
 run_nighthawk() {
   # $1=rps $2=duration_secs $3=output file (/dev/null to discard warmup)
+  # Load shape is fixed methodology: --concurrency 1 (single nighthawk event
+  # loop, so loader-side parallelism never varies between runs) with
+  # --connections 100 (nighthawk default cap per loop; high-RPS runs share
+  # this pool). These are pinned, not scaled with RPS, so compare variants
+  # only within one run; host CPU count is recorded in env.txt (nproc).
   local rps="$1" dur="$2" out="$3" err
   err="$(mktemp)"
   if docker compose --profile load run -T --rm --entrypoint /usr/local/bin/nighthawk_client loader \
     --rps "$rps" --duration "$dur" \
+    --concurrency 1 --connections 100 \
     --request-header "x-api-key: test-key-123" \
     --request-header "user-agent: benchmark-agent" \
     --output-format json \

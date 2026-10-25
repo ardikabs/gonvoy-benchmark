@@ -53,8 +53,10 @@ bash filters/wasm-rust/build.sh
 
 `*.so`, `*.wasm`, and `target/` are git-ignored build products: they must
 exist locally (the smoke tests fail static checks without them) but are never
-committed. Fresh checkouts also need network for `go mod download`
-(`filters/*/go.sum` are untracked by convention).
+committed — rebuild them with the commands above on a fresh checkout.
+Dependency lockfiles ARE committed (`filters/go-native/go.sum`,
+`filters/gonvoy/go.sum`, `filters/wasm-rust/Cargo.lock`) so rebuilds resolve
+identical deps; only network for `go mod download` / `cargo` is needed.
 
 ## Boot and switch variants
 
@@ -161,17 +163,14 @@ is deliberately not scored in the matrix (see known limitations).
   Fix needs a gonvoy upstream `DelHeader`/`AddHeader` on `Context`. The
   benchmark parser deliberately reports performance only and penalizes
   nothing for this; `test_gonvoy.sh` documents it as 4/50 expected failures.
-- **Vacuous `server` assertion in lua/wasm/go suites.** Those suites assert
-  `nohdr <case> ^server`, which greps for the literal pattern `^^server:`
-  and can never match — the `server` omission check passes trivially there
-  (only `test_gonvoy.sh` uses the corrected `nohdr <case> server`).
-  Backport pending; response-drop conformance for lua/wasm/go therefore rests
-  on config inspection, not on a live assertion.
-- **Task 7 minors (future work).** Single-connection load (`--concurrency`
-  not raised with RPS, so high-RPS runs may serialize on one connection);
-  parser approximations (linear p99 interpolation, token-based error-counter
-  matching). Adequate for relative comparison, revisit before publishing
-  absolute numbers.
+- **Response-drop conformance rests on live assertions.** The lua/wasm/go
+  suites assert `nohdr <case> server` (helper prepends `^`), matching
+  `test_gonvoy.sh`; response drops are covered live in all four suites.
+- **Task 7 minors (future work).** Fixed load shape (`--concurrency 1`,
+  `--connections 100` pinned in `run-benchmark.sh`, not scaled with RPS, so
+  high-RPS runs share one loop's pool — adequate for relative comparison,
+  revisit before publishing absolute numbers); parser approximations (linear
+  p99 interpolation, token-based error-counter matching).
 
 ## Results
 

@@ -8,7 +8,8 @@
 //
 // NOTE: gonvoy.Context exposes no response-header delete, so the spec's
 // response drops (server, x-drop-me) cannot be expressed here; the bridge
-// forwards those upstream headers untouched. See task-5-report.md.
+// forwards those upstream headers untouched. See README "Known limitations"
+// (Gonvoy response-drop leak).
 package main
 
 import (

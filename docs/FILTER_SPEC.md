@@ -16,6 +16,8 @@ Baseline implements no filter (reference only).
 - Drop `x-drop-me` (remove)
 - Always continue (no local reply)
 
+Header-only: MUST NOT touch body/trailers/local-reply — header map APIs only.
+
 Notes:
 - "Set" = replace/add semantics (single value); "Add" = append value.
 - Header name matching is case-insensitive per HTTP semantics.
