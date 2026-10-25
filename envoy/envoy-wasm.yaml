@@ -1,0 +1,62 @@
+# Envoy config for the WASM Rust header filter variant (Task 3).
+# Listener 0.0.0.0:10000 -> cluster backend:8080.
+# The compiled plugin (filters/wasm-rust/.../bench_header.wasm) is mounted
+# at /lib/bench_header.wasm by the test harness / compose setup (Task 6).
+admin:
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9901
+static_resources:
+  listeners:
+  - name: ingress
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 10000
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_http
+          server_header_transformation: PASS_THROUGH
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: backend
+              domains: ["*"]
+              routes:
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: "backend:8080"
+          http_filters:
+          - name: envoy.filters.http.wasm
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+              config:
+                name: bench_filter
+                root_id: bench_root
+                vm_config:
+                  runtime: envoy.wasm.runtime.v8
+                  code:
+                    local:
+                      filename: /lib/bench_header.wasm
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  clusters:
+  - name: "backend:8080"
+    connect_timeout: 5s
+    type: LOGICAL_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: "backend:8080"
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: backend
+                port_value: 8080

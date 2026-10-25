@@ -1,2 +1,7 @@
 .worktrees/
 .superpowers/
+*.so
+*.wasm
+target/
+results/raw/
+__pycache__/

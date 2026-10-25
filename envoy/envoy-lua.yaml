@@ -1,0 +1,98 @@
+# Envoy config for the Lua header filter variant (Task 2).
+# Listener 0.0.0.0:10000 -> cluster backend:8080.
+# Task 6 derives the baseline by stripping the lua http_filter block.
+admin:
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9901
+static_resources:
+  listeners:
+  - name: ingress
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 10000
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_http
+          server_header_transformation: PASS_THROUGH
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: backend
+              domains: ["*"]
+              routes:
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: "backend:8080"
+          http_filters:
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              default_source_code:
+                inline_string: |
+                    -- Lua header filter implementing docs/FILTER_SPEC.md (filter-name = "lua").
+                    -- Header-only: uses headers():get/add/replace/remove. No body calls.
+
+                    local function set_header(headers, name, value)
+                      if headers:get(name) == nil then
+                        headers:add(name, value)
+                      else
+                        headers:replace(name, value)
+                      end
+                    end
+
+                    function envoy_on_request(request_handle)
+                      local headers = request_handle:headers()
+
+                      if headers:get("x-api-key") == "test-key-123" then
+                        set_header(headers, "x-auth-status", "authenticated")
+                      else
+                        set_header(headers, "x-auth-status", "unauthenticated")
+                        headers:add("x-auth-retry", "true")
+                      end
+
+                      local ua = headers:get("user-agent")
+                      if ua ~= nil and string.find(ua, "benchmark", 1, true) ~= nil then
+                        set_header(headers, "x-bench-tag", "lua")
+                      else
+                        headers:add("x-bench-tag", "lua-default")
+                      end
+
+                      set_header(headers, "x-request-touched", "true")
+                      set_header(headers, "x-filter-type", "lua")
+                      headers:remove("x-drop-me")
+                    end
+
+                    function envoy_on_response(response_handle)
+                      local headers = response_handle:headers()
+
+                      headers:add("x-resp-added", "lua")
+                      set_header(headers, "x-resp-version", "v1")
+                      set_header(headers, "x-gateway", "envoy-lua")
+                      headers:remove("server")
+                      headers:remove("x-drop-me")
+                    end
+
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  clusters:
+  - name: "backend:8080"
+    connect_timeout: 5s
+    type: LOGICAL_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: "backend:8080"
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: backend
+                port_value: 8080

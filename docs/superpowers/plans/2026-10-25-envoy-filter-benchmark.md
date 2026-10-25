@@ -1,6 +1,6 @@
 # Envoy HTTP Filter Benchmark Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build a reproducible benchmark repo comparing Envoy HTTP header-manipulation filters (baseline, Lua, WASM Rust, native Go, gonvoy Go) on Envoy `contrib-v1.40`.
 
@@ -17,7 +17,7 @@
 - No body/trailers access: Lua only `headers()`, WASM only `on_http_request/response_headers`, Go only `DecodeHeaders/EncodeHeaders`, gonvoy default (no `OpenBodyAccess`, no `Read/Write*Body`).
 - Upstream MUST be identical for all runs (single `http-echo` or `direct_response`; chosen in Task 6 and reused).
 - Each run MUST pin Envoy concurrency, warm up, fixed duration, 3 repeats.
-- Every built artifact MUST be committed with its build command in README (`.so` via `c-shared`, `.wasm` via `cargo build --release --target wasm32-unknown-unknown`).
+- Every built artifact's build command MUST be in README (`.so` via `c-shared`, `.wasm` via `cargo build --release --target wasm32-unknown-unknown`); binaries themselves stay git-ignored while dependency lockfiles (`filters/*/go.sum`, `filters/wasm-rust/Cargo.lock`) ARE committed.
 - Machine info (CPU, RAM, `nproc`, `docker info`) MUST be captured per run for comparability.
 
 ## Review Focus
@@ -43,7 +43,7 @@
 - Consumes: none (first task)
 - Produces: `FILTER_SPEC.md` canonical header logic consumed by Tasks 2-5; `METRICS.md` matrix consumed by Task 7; `capture-env.sh` consumed by Task 7.
 
-- [ ] **Step 1: Write `docs/FILTER_SPEC.md` with canonical logic**
+- [x] **Step 1: Write `docs/FILTER_SPEC.md` with canonical logic**
 
 Canonical logic (exact values all filters must implement):
 
@@ -68,7 +68,7 @@ Response (Encode / envoy_on_response / on_http_response_headers):
 where <filter-name> in {lua, wasm, go, gonvoy}
 ```
 
-- [ ] **Step 2: Write `docs/METRICS.md` comparison matrix**
+- [x] **Step 2: Write `docs/METRICS.md` comparison matrix**
 
 Content must define table:
 
@@ -85,23 +85,23 @@ Content must define table:
 
 Plus decision rule: gonvoy is "worth it" if within 10% of native Go on p99 + RPS/CPU, and beats at least one of Lua/WASM on p99 at same RPS.
 
-- [ ] **Step 3: Write `scripts/capture-env.sh`**
+- [x] **Step 3: Write `scripts/capture-env.sh`**
 
 ```bash
 #!/bin/bash
 # prints: uname -a, nproc, free/total mem, docker info, envoy --version
 ```
 
-- [ ] **Step 4: Write `README.md` skeleton + `.gitignore`**
+- [x] **Step 4: Write `README.md` skeleton + `.gitignore`**
 
 README sections: goal, variants (baseline/lua/wasm/go/gonvoy), quickstart (`docker compose up`, `./scripts/run-benchmark.sh`), results link. `.gitignore`: `*.so`, `*.wasm`, `target/`, `results/raw/`, `__pycache__/`.
 
-- [ ] **Step 5: Verify files exist**
+- [x] **Step 5: Verify files exist**
 
 Run: `ls -R . && cat docs/FILTER_SPEC.md | head -20`
 Expected: PASS (all 5 files present, spec contains `x-auth-status`)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add README.md docs/FILTER_SPEC.md docs/METRICS.md .gitignore scripts/capture-env.sh
@@ -121,7 +121,7 @@ git commit -m "docs: add canonical filter spec and metrics matrix"
 - Consumes: `docs/FILTER_SPEC.md` canonical logic
 - Produces: `envoy/envoy-lua.yaml` pattern consumed by Task 6 (baseline derived by stripping filter block)
 
-- [ ] **Step 1: Write failing smoke test `tests/test_lua.sh`**
+- [x] **Step 1: Write failing smoke test `tests/test_lua.sh`**
 
 ```bash
 #!/bin/bash
@@ -131,25 +131,25 @@ git commit -m "docs: add canonical filter spec and metrics matrix"
 
 Assertions: `curl -H "x-api-key: test-key-123" → x-auth-status: authenticated`; without key → `unauthenticated`; response has `x-resp-added: lua`, no `server:`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash tests/test_lua.sh`
 Expected: FAIL ( envoy config or filter.lua missing)
 
-- [ ] **Step 3: Implement `filters/lua/filter.lua` per spec**
+- [x] **Step 3: Implement `filters/lua/filter.lua` per spec**
 
 Exact function names: `envoy_on_request(request_handle)`, `envoy_on_response(response_handle)`. Use `headers():get/add/replace/remove` only. No body calls. Branch on `x-api-key == "test-key-123"` string equality + `string.find(user-agent, "benchmark", 1, true)` plain find.
 
-- [ ] **Step 4: Implement `envoy/envoy-lua.yaml`**
+- [x] **Step 4: Implement `envoy/envoy-lua.yaml`**
 
 Listener `0.0.0.0:10000`, `HttpConnectionManager`, `http_filters: [envoy.filters.http.lua (inline_string from filter.lua), envoy.filters.http.router]`, route `prefix: /` → cluster `backend:8080` (placeholder; Task 6 wires real upstream). `stat_prefix: ingress_http`.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `bash tests/test_lua.sh`
 Expected: PASS (all curl assertions green)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add filters/lua/filter.lua envoy/envoy-lua.yaml tests/test_lua.sh
@@ -171,29 +171,29 @@ git commit -m "feat: add Lua header filter and envoy config"
 - Consumes: `docs/FILTER_SPEC.md`
 - Produces: `filters/wasm-rust/bench_header.wasm` artifact path `filters/wasm-rust/target/wasm32-unknown-unknown/release/bench_header.wasm` consumed by Task 6 compose mount.
 
-- [ ] **Step 1: Write failing test `tests/test_wasm.sh`**
+- [x] **Step 1: Write failing test `tests/test_wasm.sh`**
 
 Same curl assertions as Lua but `x-bench-tag: wasm`, `x-resp-added: wasm`. Fails until `.wasm` built.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash tests/test_wasm.sh`
 Expected: FAIL
 
-- [ ] **Step 3: Implement `filters/wasm-rust/Cargo.toml` + `src/lib.rs`**
+- [x] **Step 3: Implement `filters/wasm-rust/Cargo.toml` + `src/lib.rs`**
 
 `Cargo.toml`: `crate-type = ["cdylib"]`, `proxy-wasm = "0.2"`. `lib.rs`: `RootContext → HttpContext`, `on_http_request_headers` / `on_http_response_headers` returning `Action::Continue`, using `get_/set_/add_/remove_http_request/response_header` only. Same branch logic as spec with `<filter-name>=wasm`.
 
-- [ ] **Step 4: Implement `filters/wasm-rust/build.sh` + `envoy/envoy-wasm.yaml`**
+- [x] **Step 4: Implement `filters/wasm-rust/build.sh` + `envoy/envoy-wasm.yaml`**
 
 `build.sh`: `rustup target add wasm32-unknown-unknown; cargo build --release --target wasm32-unknown-unknown`. Envoy snippet: `envoy.filters.http.wasm` with `vm_config.runtime: envoy.wasm.runtime.v8`, `filename: /lib/bench_header.wasm`, `root_id: bench_root`.
 
-- [ ] **Step 5: Build + run test to verify it passes**
+- [x] **Step 5: Build + run test to verify it passes**
 
 Run: `bash filters/wasm-rust/build.sh && bash tests/test_wasm.sh`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add filters/wasm-rust/Cargo.toml filters/wasm-rust/src/lib.rs filters/wasm-rust/build.sh envoy/envoy-wasm.yaml tests/test_wasm.sh
@@ -215,29 +215,29 @@ git commit -m "feat: add WASM Rust header filter and envoy config"
 - Consumes: `docs/FILTER_SPEC.md`
 - Produces: `filters/go-native/bench-go.so` + `plugin_name: bench-go` consumed by Task 6; establishes behavior baseline for Task 5 gonvoy comparison.
 
-- [ ] **Step 1: Write failing test `tests/test_go_native.sh`**
+- [x] **Step 1: Write failing test `tests/test_go_native.sh`**
 
 Same curl matrix, expects `x-resp-added: go`, `x-gateway: envoy-go`. Fails until `.so` built.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash tests/test_go_native.sh`
 Expected: FAIL
 
-- [ ] **Step 3: Implement `filters/go-native/filter.go` with signature `func (f *filter) DecodeHeaders(h api.RequestHeaderMap, _ bool) api.StatusType` and `EncodeHeaders`**
+- [x] **Step 3: Implement `filters/go-native/filter.go` with signature `func (f *filter) DecodeHeaders(h api.RequestHeaderMap, _ bool) api.StatusType` and `EncodeHeaders`**
 
 Use `h.Get/Set/Add/Del` only, check `ok` bool for missing `x-api-key`, `strings.Contains(ua, "benchmark")`, return `api.Continue`. Register via `http.RegisterHttpFilterFactoryAndConfigParser("bench-go", ...)`. `go.mod`: `module bench-go-native`, `go 1.26`, `require github.com/envoyproxy/envoy v1.40.0`.
 
-- [ ] **Step 4: Implement `filters/go-native/build.sh` + `envoy/envoy-go-native.yaml`**
+- [x] **Step 4: Implement `filters/go-native/build.sh` + `envoy/envoy-go-native.yaml`**
 
 `build.sh`: `go build -buildmode=c-shared -o bench-go.so .`. Envoy: `envoy.filters.http.golang` with `library_id: bench-go-id`, `library_path: /lib/bench-go.so`, `plugin_name: bench-go`.
 
-- [ ] **Step 5: Build + run test to verify it passes**
+- [x] **Step 5: Build + run test to verify it passes**
 
 Run: `bash filters/go-native/build.sh && bash tests/test_go_native.sh`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add filters/go-native/go.mod filters/go-native/filter.go filters/go-native/build.sh envoy/envoy-go-native.yaml tests/test_go_native.sh
@@ -260,29 +260,29 @@ git commit -m "feat: add native Go header filter and envoy config"
 - Consumes: `docs/FILTER_SPEC.md`; mirrors Task 4 behavior with `<filter-name>=gonvoy`
 - Produces: `filters/gonvoy/gonvoy.so` + `plugin_name: bench-gonvoy` consumed by Task 6/7.
 
-- [ ] **Step 1: Write failing test `tests/test_gonvoy.sh`**
+- [x] **Step 1: Write failing test `tests/test_gonvoy.sh`**
 
 Same curl matrix, expects `x-resp-added: gonvoy`, `x-gateway: envoy-gonvoy`. Fails until implemented.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash tests/test_gonvoy.sh`
 Expected: FAIL
 
-- [ ] **Step 3: Implement `filters/gonvoy/handler.go` as `func BenchHandler(c gonvoy.Context) error` + `main.go` with `envoy.Handle("bench-gonvoy", gonvoy.Use(BenchHandler))` in `init()`**
+- [x] **Step 3: Implement `filters/gonvoy/handler.go` as `func BenchHandler(c gonvoy.Context) error` + `main.go` with `envoy.Handle("bench-gonvoy", gonvoy.Use(BenchHandler))` in `init()`**
 
 Use `c.Header/SetHeader` (check gonvoy Context API: request-header read, set/add/drop equivalents) only, no body APIs. Branch identical to spec. Return `nil` always (passthrough). `go.mod`: `module bench-gonvoy`, `go 1.26`, `require github.com/ardikabs/gonvoy latest`.
 
-- [ ] **Step 4: Implement `filters/gonvoy/build.sh` + `envoy/envoy-gonvoy.yaml`**
+- [x] **Step 4: Implement `filters/gonvoy/build.sh` + `envoy/envoy-gonvoy.yaml`**
 
 `build.sh`: `go build -o gonvoy.so -buildmode=c-shared .`. Envoy: same golang filter type, `library_id: bench-gonvoy-id`, `library_path: /lib/gonvoy.so`, `plugin_name: bench-gonvoy`.
 
-- [ ] **Step 5: Build + run test to verify it passes + diff vs native Go**
+- [x] **Step 5: Build + run test to verify it passes + diff vs native Go**
 
 Run: `bash filters/gonvoy/build.sh && bash tests/test_gonvoy.sh && diff <(curl -s -D - ... go) <(curl -s -D - ... gonvoy) # headers equal except x-* filter name`
 Expected: PASS + only filter-name values differ
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add filters/gonvoy/go.mod filters/gonvoy/main.go filters/gonvoy/handler.go filters/gonvoy/build.sh envoy/envoy-gonvoy.yaml tests/test_gonvoy.sh
@@ -304,11 +304,11 @@ git commit -m "feat: add gonvoy header filter and envoy config"
 - Consumes: all 5 envoy configs, both `.so` paths, `.wasm` path
 - Produces: `docker compose --profile <variant>` or `FILTER_VARIANT=` switching consumed by Task 7 harness.
 
-- [ ] **Step 1: Write `envoy/envoy-baseline.yaml` (copy of lua config minus lua filter, only router)**
+- [x] **Step 1: Write `envoy/envoy-baseline.yaml` (copy of lua config minus lua filter, only router)**
 
-- [ ] **Step 2: Write `docker-compose.yaml` with services `backend` (hashicorp/http-echo or mendhak/http-https-echo), `envoy` (image contrib-v1.40-latest, mounts `./envoy/envoy-${FILTER_VARIANT}.yaml:/etc/envoy.yaml`, `./filters/.../*.so:/lib/...`, `./filters/.../*.wasm:/lib/...`), `loader` (nighthawk client image)**
+- [x] **Step 2: Write `docker-compose.yaml` with services `backend` (hashicorp/http-echo or mendhak/http-https-echo), `envoy` (image contrib-v1.40-latest, mounts `./envoy/envoy-${FILTER_VARIANT}.yaml:/etc/envoy.yaml`, `./filters/.../*.so:/lib/...`, `./filters/.../*.wasm:/lib/...`), `loader` (nighthawk client image)**
 
-- [ ] **Step 3: Write `scripts/switch-variant.sh`**
+- [x] **Step 3: Write `scripts/switch-variant.sh`**
 
 ```bash
 #!/bin/bash
@@ -316,12 +316,12 @@ git commit -m "feat: add gonvoy header filter and envoy config"
 # sets FILTER_VARIANT, restarts envoy, curls health, prints active filter
 ```
 
-- [ ] **Step 4: Verify all variants boot**
+- [x] **Step 4: Verify all variants boot**
 
 Run: `for v in baseline lua wasm go-native gonvoy; do ./scripts/switch-variant.sh $v || exit 1; done`
 Expected: PASS (each curl returns 200 + correct `x-resp-added` or absent for baseline)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add envoy/envoy-baseline.yaml docker-compose.yaml Dockerfile.envoy scripts/switch-variant.sh
@@ -342,20 +342,20 @@ git commit -m "feat: add baseline config and compose wiring"
 - Consumes: `scripts/capture-env.sh`, `scripts/switch-variant.sh`, `docs/METRICS.md`
 - Produces: `results/<timestamp>/summary.md` comparison table answering gonvoy-vs-native-Go + vs Lua/WASM.
 
-- [ ] **Step 1: Write `scripts/run-benchmark.sh`**
+- [x] **Step 1: Write `scripts/run-benchmark.sh`**
 
 Behavior: args `--rps 1000,5000,20000 --duration 60s --repeats 3 --variants all`; per combo: warmup 10s discarded, `nighthawk_client --rps X --duration Y --request-header "x-api-key: test-key-123" --request-header "user-agent: benchmark-agent" --output-format json`, save `results/raw/<variant>-<rps>-<rep>.json`, capture `docker stats` snapshot + `capture-env.sh` output once per run.
 
-- [ ] **Step 2: Write `scripts/parse-results.py`**
+- [x] **Step 2: Write `scripts/parse-results.py`**
 
 Input: `results/raw/*.json` + docker stats CSV. Output: `results/summary.md` table with columns Variant | RPS achieved | p50 | p95 | p99 | err% | CPU% | RSS | RPS/CPU, plus verdict line per METRICS.md decision rule. Must compute HDR `p50/p90/p95/p99` from nighthawk `execution_duration` histogram.
 
-- [ ] **Step 3: Dry-run harness at low RPS to verify it works**
+- [x] **Step 3: Dry-run harness at low RPS to verify it works**
 
 Run: `./scripts/run-benchmark.sh --rps 100 --duration 10s --repeats 1 --variants baseline,lua`
 Expected: PASS (`results/raw/` has 2 JSONs, `results/summary.md` renders table)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add scripts/run-benchmark.sh scripts/parse-results.py results/README.md load/nighthawk-queries.yaml
@@ -374,19 +374,19 @@ git commit -m "feat: add load harness and results parser"
 - Consumes: everything above
 - Produces: final repo ready for user to run full benchmark on their machine.
 
-- [ ] **Step 1: Run full smoke across all variants**
+- [x] **Step 1: Run full smoke across all variants**
 
 Run: `for t in tests/test_*.sh; do bash $t || exit 1; done`
 Expected: PASS (5/5 incl. baseline curl)
 
-- [ ] **Step 2: Run mini benchmark sweep to prove harness end-to-end**
+- [x] **Step 2: Run mini benchmark sweep to prove harness end-to-end**
 
 Run: `./scripts/run-benchmark.sh --rps 500 --duration 15s --repeats 1 --variants all`
 Expected: PASS (5 JSONs + summary.md with all variants, no errors)
 
-- [ ] **Step 3: Update README with machine-constraint note + how to interpret higher/lower-better + gonvoy verdict rule + build commands for .so/.wasm**
+- [x] **Step 3: Update README with machine-constraint note + how to interpret higher/lower-better + gonvoy verdict rule + build commands for .so/.wasm**
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add README.md results/.gitkeep

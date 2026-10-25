@@ -1,0 +1,57 @@
+# Benchmark stack (Task 6): backend + envoy + loader.
+#
+# Variant switching is done WITHOUT profiles or a custom image: the envoy
+# service bind-mounts ./envoy/envoy-${FILTER_VARIANT}.yaml, so
+#   FILTER_VARIANT=lua docker compose up -d envoy
+# or ./scripts/switch-variant.sh lua selects the config. All five envoy
+# configs are identical except their http_filters block and all route
+# prefix / -> cluster backend:8080 (verified in Task 6; kept idempotent).
+#
+# No Dockerfile.envoy is used: bind mounts make a custom image unnecessary
+# and avoid a rebuild per variant.
+#
+# Services:
+#   backend - mendhak/http-https-echo (echoes request headers as JSON,
+#             useful for Task 7 conformance checks). Host port 8081 is only
+#             for direct-backend debugging; envoy reaches it as backend:8080.
+#   envoy   - envoyproxy/envoy:contrib-v1.40-latest (contrib, NOT distroless:
+#             the golang http filter used by go-native/gonvoy is absent from
+#             the standard build). Plugin artifacts are mounted at the exact
+#             /lib paths referenced by envoy-wasm/go-native/gonvoy configs.
+#   loader  - nighthawk client, profile-gated (never starts on plain `up`).
+#             Task 7 runs load via:
+#               docker compose --profile load run --rm loader \
+#                 --rps ... --duration ... http://envoy:10000/ ...
+
+services:
+  backend:
+    image: mendhak/http-https-echo:latest
+    restart: unless-stopped
+    expose:
+      - "8080"
+    ports:
+      - "127.0.0.1:8081:8080"
+
+  envoy:
+    image: envoyproxy/envoy:contrib-v1.40-latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "10000:10000"
+      - "127.0.0.1:9901:9901"
+    volumes:
+      - ./envoy/envoy-${FILTER_VARIANT:-baseline}.yaml:/etc/envoy/envoy.yaml:ro
+      - ./filters/go-native/bench-go.so:/lib/bench-go.so:ro
+      - ./filters/gonvoy/gonvoy.so:/lib/gonvoy.so:ro
+      - ./filters/wasm-rust/target/wasm32-unknown-unknown/release/bench_header.wasm:/lib/bench_header.wasm:ro
+
+  loader:
+    image: envoyproxy/nighthawk-dev:latest
+    profiles:
+      - load
+    depends_on:
+      - envoy
+    # Default only prints usage; Task 7 overrides the command per run via
+    # `docker compose --profile load run --rm loader ...`.
+    command: ["--help"]
