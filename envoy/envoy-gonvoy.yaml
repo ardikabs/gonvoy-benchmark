@@ -38,7 +38,7 @@ static_resources:
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.golang.v3alpha.Config
               library_id: bench-gonvoy-id
-              library_path: /lib/gonvoy.so
+              library_path: /lib/gonvoy/gonvoy.so
               plugin_name: bench-gonvoy
           - name: envoy.filters.http.router
             typed_config:

@@ -42,9 +42,9 @@ services:
       - "127.0.0.1:9901:9901"
     volumes:
       - ./envoy/envoy-${FILTER_VARIANT:-baseline}.yaml:/etc/envoy/envoy.yaml:ro
-      - ./filters/go-native/bench-go.so:/lib/bench-go.so:ro
-      - ./filters/gonvoy/gonvoy.so:/lib/gonvoy.so:ro
-      - ./filters/wasm-rust/target/wasm32-unknown-unknown/release/bench_header.wasm:/lib/bench_header.wasm:ro
+      - ./filters/go-native:/lib/go-native:ro
+      - ./filters/gonvoy:/lib/gonvoy:ro
+      - ./filters/wasm-rust/target/wasm32-unknown-unknown/release:/lib/wasm:ro
 
   loader:
     image: envoyproxy/nighthawk-dev:latest

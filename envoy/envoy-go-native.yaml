@@ -38,7 +38,7 @@ static_resources:
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.golang.v3alpha.Config
               library_id: bench-go-id
-              library_path: /lib/bench-go.so
+              library_path: /lib/go-native/bench-go.so
               plugin_name: bench-go
           - name: envoy.filters.http.router
             typed_config:

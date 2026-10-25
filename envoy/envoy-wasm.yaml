@@ -42,7 +42,7 @@ static_resources:
                   runtime: envoy.wasm.runtime.v8
                   code:
                     local:
-                      filename: /lib/bench_header.wasm
+                      filename: /lib/wasm/bench_header.wasm
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
